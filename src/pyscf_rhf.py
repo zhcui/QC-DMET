@@ -21,7 +21,6 @@ import numpy as np
 import qcdmet_paths
 import localintegrals
 from pyscf import ao2mo, gto, scf
-from pyscf.tools import rhf_newtonraphson
 
 def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, chempot_imp=0.0 ):
 
@@ -44,10 +43,10 @@ def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, chempot_imp=0.0 )
     mf.scf( DMguessRHF )
     DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
     if ( mf.converged == False ):
-        mf = rhf_newtonraphson.solve( mf, dm_guess=DMloc )
+        mf = mf.newton()
         DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
     
-    ERHF = mf.hf_energy
+    ERHF = mf.e_tot
     RDM1 = mf.make_rdm1()
     JK   = mf.get_veff(None, dm=RDM1)
  

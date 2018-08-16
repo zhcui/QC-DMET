@@ -242,8 +242,9 @@ class dmet:
                 DMguessRHF = self.ints.dmet_init_guess_rhf( loc2dmet, Norb_in_imp, Nelec_in_imp/2, numImpOrbs, chempot_imp )
                 IMP_energy, IMP_1RDM = pyscf_rhf.solve( 0.0, dmetOEI, dmetFOCK, dmetTEI, Norb_in_imp, Nelec_in_imp, numImpOrbs, DMguessRHF, chempot_imp )
             elif ( self.method == 'ED' ):
-                import chemps2
-                IMP_energy, IMP_1RDM = chemps2.solve( 0.0, dmetOEI, dmetFOCK, dmetTEI, Norb_in_imp, Nelec_in_imp, numImpOrbs, chempot_imp )
+                print "no chemps2 solver"
+                #import chemps2
+                #IMP_energy, IMP_1RDM = chemps2.solve( 0.0, dmetOEI, dmetFOCK, dmetTEI, Norb_in_imp, Nelec_in_imp, numImpOrbs, chempot_imp )
             elif ( self.method == 'CC' ):
                 import pyscf_cc
                 assert( Nelec_in_imp % 2 == 0 )

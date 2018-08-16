@@ -24,7 +24,6 @@ import sys # for sys.stdout
 import qcdmet_paths
 from pyscf import ao2mo, gto, scf
 from pyscf.cc import ccsd
-from pyscf.tools import rhf_newtonraphson
 
 def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, energytype='LAMBDA', chempot_imp=0.0, printoutput=True ):
 
@@ -58,7 +57,7 @@ def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, energytype='LAMBD
     mf.scf( DMguessRHF )
     DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
     if ( mf.converged == False ):
-        mf = rhf_newtonraphson.solve( mf, dm_guess=DMloc )
+        mf = mf.newton()
         DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
     
     # Check the RHF solution
@@ -77,7 +76,7 @@ def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, energytype='LAMBD
     ccsolver = ccsd.CCSD( mf )
     ccsolver.verbose = 5
     ECORR, t1, t2 = ccsolver.ccsd()
-    ERHF = mf.hf_energy
+    ERHF = mf.e_tot
     ECCSD = ERHF + ECORR
     
     # Compute the impurity energy

@@ -72,7 +72,7 @@ for bondlength in bondlengths:
                 impurities[ orbs_per_imp*cluster + orb ] = 1
             impurityClusters.append( impurities )
         isTranslationInvariant = True # OK because only s-functions and meta-lowdin
-        method = 'ED'
+        method = 'CC'
         SCmethod = 'LSTSQ' #Don't do it self-consistently
         theDMET = dmet.dmet( myInts, impurityClusters, isTranslationInvariant, method, SCmethod )
         #if ( old_umat != None ):

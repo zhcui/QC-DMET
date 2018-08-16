@@ -22,7 +22,7 @@
 import sys
 sys.path.append('../src')
 import localintegrals, dmet, qcdmet_paths
-from pyscf import gto, scf, symm, future
+from pyscf import gto, scf, symm
 from pyscf.cc import ccsd
 import numpy as np
 import sn2_struct

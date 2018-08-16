@@ -21,7 +21,7 @@ import numpy as np
 import scipy.sparse.linalg
 import qcdmet_paths
 from pyscf import gto, scf, ao2mo
-from pyscf.tools import rhf_newtonraphson
+from pyscf import soscf
 
 def solve_ERI( OEI, TEI, DMguess, numPairs ):
 
@@ -39,7 +39,8 @@ def solve_ERI( OEI, TEI, DMguess, numPairs ):
     mf.scf( DMguess )
     DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
     if ( mf.converged == False ):
-        mf = rhf_newtonraphson.solve( mf, dm_guess=DMloc )
+        mf = mf.newton()
+        #mf = rhf_newtonraphson.solve( mf, dm_guess=DMloc )
         DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
     return DMloc
     

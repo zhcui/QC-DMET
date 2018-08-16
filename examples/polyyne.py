@@ -20,7 +20,7 @@
 import sys
 sys.path.append('../src')
 import localintegrals, dmet, qcdmet_paths
-from pyscf import gto, scf, future, mp
+from pyscf import gto, scf, mp
 from pyscf.cc import ccsd
 import numpy as np
 
