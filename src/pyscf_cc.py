@@ -74,7 +74,7 @@ def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, energytype='LAMBD
     
     # Get the CC solution from pyscf
     ccsolver = ccsd.CCSD( mf )
-    ccsolver.verbose = 5
+    ccsolver.verbose = 3
     ECORR, t1, t2 = ccsolver.ccsd()
     ERHF = mf.e_tot
     ECCSD = ERHF + ECORR

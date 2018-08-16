@@ -1,2 +1,1 @@
-export LD_PRELOAD=/opt/intel/mkl/lib/intel64/libmkl_rt.so
-
+export LD_PRELOAD=/home/xiaojie/anaconda2/lib/libmkl_rt.so:/home/xiaojie/anaconda2/lib/libmkl_avx.so:/home/xiaojie/anaconda2/lib/libmkl_core.so:/home/xiaojie/anaconda2/lib/libmkl_avx2.so:/home/xiaojie/anaconda2/lib/libmkl_def.so

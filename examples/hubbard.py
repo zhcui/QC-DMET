@@ -23,7 +23,7 @@ import localintegrals_hubbard, dmet, qcdmet_paths
 import numpy as np
 
 HubbardU   = 1.0
-Norbs      = 16
+Norbs      = 160
 imp_size   = 2
 
 assert ( Norbs % imp_size == 0 )
@@ -31,7 +31,7 @@ assert ( Norbs % imp_size == 0 )
 fillings = []
 energies = []
 
-for Nelectrons in range( 4, 17, 4 ):
+for Nelectrons in range( 40, 161, 40 ):
 
    hopping  = np.zeros( [Norbs, Norbs], dtype=float )
    for orb in range(Norbs-1):
@@ -54,7 +54,7 @@ for Nelectrons in range( 4, 17, 4 ):
        totalcount += item
    assert ( np.linalg.norm( totalcount - np.ones( [ myInts.Norbs ], dtype=float ) ) < 1e-12 )
 
-   isTranslationInvariant = True
+   isTranslationInvariant = False
    method = 'CC'
    SCmethod = 'LSTSQ' # 'LSTSQ'
    theDMET = dmet.dmet( myInts, impurityClusters, isTranslationInvariant, method, SCmethod )
