@@ -22,6 +22,8 @@ import qcdmethelper
 import numpy as np
 from scipy import optimize
 import time
+from pyscf import lib
+import fit
 
 class dmet:
 
@@ -69,8 +71,8 @@ class dmet:
                 self.NOvecs = None
                 self.NOdiag = None
         
-        self.print_u   = True
-        self.print_rdm = True
+        self.print_u   = False
+        self.print_rdm = False
         
         allOne = self.testclusters()
         if ( allOne == False ): # One or more impurities which do not cover the entire system
@@ -236,7 +238,7 @@ class dmet:
                 dmetOEI += umat_rotated[:Norb_in_imp,:Norb_in_imp]
                 dmetFOCK = np.array( dmetOEI, copy=True )
             
-            print "DMET::exact : Performing a (", Norb_in_imp, "orb,", Nelec_in_imp, "el ) DMET active space calculation."
+            # print "DMET::exact : Performing a (", Norb_in_imp, "orb,", Nelec_in_imp, "el ) DMET active space calculation."
             if ( flag_rhf ):
                 import pyscf_rhf
                 DMguessRHF = self.ints.dmet_init_guess_rhf( loc2dmet, Norb_in_imp, Nelec_in_imp/2, numImpOrbs, chempot_imp )
@@ -591,22 +593,28 @@ class dmet:
         
         Nelec_dmet   = self.doexact( chempot_imp )
         Nelec_target = self.ints.Nelec
-        print "      (chemical potential , number of electrons) = (", chempot_imp, "," , Nelec_dmet ,")"
+        # print "      (chemical potential , number of electrons) = (", chempot_imp, "," , Nelec_dmet ,")"
         return Nelec_dmet - Nelec_target
-
-    def doselfconsistent( self ):
     
+    def doselfconsistent( self ):
+        
         iteration = 0
         u_diff = 1.0
-        convergence_threshold = 1e-5
+        e_diff = 1.0
+        u_threshold = 1e-5
+        e_threshold = 1e-5
+        
+        adiis = lib.diis.DIIS()
+        
         print "RHF energy =", self.ints.fullEhf
         
-        while ( u_diff > convergence_threshold ):
-        
+        while ((u_diff > u_threshold) or (e_diff > e_threshold)):
+            
             iteration += 1
             print "DMET iteration", iteration
             umat_old = np.array( self.umat, copy=True )
             rdm_old = self.transform_ed_1rdm() # At the very first iteration, this matrix will be zero
+            e_old = self.energy
             
             # Find the chemical potential for the correlated impurity problem
             start_ed = time.time()
@@ -619,21 +627,29 @@ class dmet:
             stop_ed = time.time()
             self.time_ed += ( stop_ed - start_ed )
             print "   Energy =", self.energy
+            
             # self.verify_gradient( self.square2flat( self.umat ) ) # Only works for self.doSCF == False!!
-            if ( self.SCmethod != 'NONE' and not(self.altcostfunc) ):
-                self.hessian_eigenvalues( self.square2flat( self.umat ) )
+            # if ( self.SCmethod != 'NONE' and not(self.altcostfunc) ):
+            #    self.hessian_eigenvalues( self.square2flat( self.umat ) )
             
             # Solve for the u-matrix
             start_cf = time.time()
             if ( self.altcostfunc and self.SCmethod == 'BFGS' ):
-                result = optimize.minimize( self.alt_costfunction, self.square2flat( self.umat ), jac=self.alt_costfunction_derivative, options={'disp': False} )
+                result = optimize.minimize( self.alt_costfunction, self.square2flat( self.umat ), jac=self.alt_costfunction_derivative, tol=1E-8, options={'disp': False, 'eps':1E-10, 'gtol':1E-7, 'maxiter':500} )
                 self.umat = self.flat2square( result.x )
             elif ( self.SCmethod == 'LSTSQ' ):
                 result = optimize.leastsq( self.rdm_differences, self.square2flat( self.umat ), Dfun=self.rdm_differences_derivative, factor=0.1 )
                 self.umat = self.flat2square( result[ 0 ] )
             elif ( self.SCmethod == 'BFGS' ):
-                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, options={'disp': False} )
-                self.umat = self.flat2square( result.x )
+                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='L-BFGS-B', tol=1E-8, options={'disp': False, 'eps':1E-10, 'gtol':1E-7, 'maxiter':500})
+                #x, y, conv = fit.minimize(self.costfunction, self.square2flat( self.umat), fgrad = self.costfunction_derivative)
+                if(iteration > 1):
+                    result.x = adiis.update(result.x)
+                
+                self.umat = self.flat2square(result.x )
+                
+                #print('convergence parttan')
+                #print(conv)                
             self.umat = self.umat - np.eye( self.umat.shape[ 0 ] ) * np.average( np.diag( self.umat ) ) # Remove arbitrary chemical potential shifts
             if ( self.altcostfunc ):
                 print "   Cost function after convergence =", self.alt_costfunction( self.square2flat( self.umat ) )
@@ -647,18 +663,22 @@ class dmet:
                 self.print_umat()
             if self.print_rdm:
                 self.print_1rdm()
-            
+                
             # Get the error measure
             u_diff   = np.linalg.norm( umat_old - self.umat )
+            e_diff   = np.abs(e_old - self.energy)
             rdm_diff = np.linalg.norm( rdm_old - self.transform_ed_1rdm() )
+            
             self.umat = self.relaxation * umat_old + ( 1.0 - self.relaxation ) * self.umat
+            print "             difference old and new energy=", e_diff
             print "   2-norm of difference old and new u-mat =", u_diff
-            print "   2-norm of difference old and new 1-RDM =", rdm_diff
+            #print "   2-norm of difference old and new 1-RDM =", rdm_diff
             print "******************************************************"
             
             if ( self.SCmethod == 'NONE' ):
-                u_diff = 0.1 * convergence_threshold # Do only 1 iteration
-        
+                u_diff = 0.1 * u_threshold # Do only 1 iteration
+                e_diff = 0.1 * u_threshold
+                
         print "Time cf func =", self.time_func
         print "Time cf grad =", self.time_grad
         print "Time dmet ed =", self.time_ed
