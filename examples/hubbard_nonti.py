@@ -22,20 +22,20 @@ sys.path.append('../src')
 import localintegrals_hubbard, dmet, qcdmet_paths
 import numpy as np
 
-Norbs      = 160
 imp_size   = 2
-HubbardU   = np.zeros(Norbs)
-
-for orb in range(0,Norbs):
-   HubbardU[ orb ] = 1.0
-
-assert ( Norbs % imp_size == 0 )
 
 fillings = []
 energies = []
 
-for Nelectrons in range( 40, 161, 40 ):
+file = open("energy.dat", "w+")
 
+for Norbs in range( 20, 161, 20 ):
+
+   Nelectrons = Norbs
+   HubbardU = np.zeros(Norbs)
+   for orb in range(0,Norbs):
+      HubbardU[ orb ] = 1.0 + np.random.uniform(0,0.1)
+         
    hopping  = np.zeros( [Norbs, Norbs], dtype=float )
    for orb in range(Norbs-1):
        hopping[ orb, orb+1 ] = -1.0
@@ -68,6 +68,10 @@ for Nelectrons in range( 40, 161, 40 ):
    
    fillings.append( (1.0 * Nelectrons) / Norbs )
    energies.append( theEnergy / Norbs )
+   
+   file.write(str(theEnergy/Nelectrons) + '\n')
+
+file.close()
 
 np.set_printoptions(precision=8, linewidth=160)
 print "For U =", HubbardU,"and Norbs =", Norbs

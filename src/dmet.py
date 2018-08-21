@@ -641,15 +641,16 @@ class dmet:
                 result = optimize.leastsq( self.rdm_differences, self.square2flat( self.umat ), Dfun=self.rdm_differences_derivative, factor=0.1 )
                 self.umat = self.flat2square( result[ 0 ] )
             elif ( self.SCmethod == 'BFGS' ):
-                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='L-BFGS-B', tol=1E-8, options={'disp': False, 'eps':1E-10, 'gtol':1E-7, 'maxiter':500})
+                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='L-BFGS-B', tol=1E-8, options={'disp': True, 'eps':1E-10, 'gtol':1E-7, 'maxiter':500})
                 #x, y, conv = fit.minimize(self.costfunction, self.square2flat( self.umat), fgrad = self.costfunction_derivative)
                 if(iteration > 1):
                     result.x = adiis.update(result.x)
                 
                 self.umat = self.flat2square(result.x )
                 
-                #print('convergence parttan')
-                #print(conv)                
+                # print('convergence parttan')
+                print('jac')
+                print(result.jac)                
             self.umat = self.umat - np.eye( self.umat.shape[ 0 ] ) * np.average( np.diag( self.umat ) ) # Remove arbitrary chemical potential shifts
             if ( self.altcostfunc ):
                 print "   Cost function after convergence =", self.alt_costfunction( self.square2flat( self.umat ) )

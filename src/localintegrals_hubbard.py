@@ -22,8 +22,8 @@ import numpy as np
 
 class localintegrals_hubbard:
 
-    def __init__( self, hopping, HubbardU, Nelectrons ):
-    
+    def __init__( self, hopping, HubbardU, Nelectrons):
+        
         self.activeOEI = hopping
         self.Norbs     = hopping.shape[0]
         self.Nelec     = Nelectrons
@@ -44,7 +44,7 @@ class localintegrals_hubbard:
         self.origDMloc  = 2 * np.dot( eigvecs[:,:numPairs], eigvecs[:,:numPairs].T )
         self.origJKloc  = np.zeros( [self.Norbs], dtype=float )
         for orb in range( self.Norbs ):
-            self.origJKloc[ orb ] = 0.5 * self.HubbardU * self.origDMloc[ orb, orb ]
+            self.origJKloc[ orb ] = 0.5 * self.HubbardU[ orb ] * self.origDMloc[ orb, orb ]
         self.origJKloc  = np.diag( self.origJKloc )
         self.fullEhf    = np.einsum( 'ij,ij->', self.activeOEI + 0.5 * self.origJKloc, self.origDMloc )
         self.activeFOCK = self.activeOEI + self.origJKloc
@@ -53,7 +53,7 @@ class localintegrals_hubbard:
         
         self.activeERI = np.zeros( [self.Norbs, self.Norbs, self.Norbs, self.Norbs], dtype=float)
         for orb in range( self.Norbs ):
-            self.activeERI[ orb, orb, orb, orb ] = self.HubbardU
+            self.activeERI[ orb, orb, orb, orb ] = self.HubbardU[ orb ]
         self.ERIinMEM = True
         
     def const( self ):
@@ -72,7 +72,7 @@ class localintegrals_hubbard:
     
         JKloc   = np.zeros( [self.Norbs], dtype=float )
         for orb in range( self.Norbs ):
-            JKloc[ orb ] = 0.5 * self.HubbardU * DMloc[ orb, orb ]
+            JKloc[ orb ] = 0.5 * self.HubbardU[ orb ] * DMloc[ orb, orb ]
         JKloc   = np.diag( JKloc )
         FOCKloc = self.activeOEI + JKloc
         return FOCKloc
@@ -111,7 +111,7 @@ class localintegrals_hubbard:
                     for orb4 in range(numAct):
                         value = 0.0
                         for orb in range( self.Norbs ):
-                            value += loc2dmet[ orb, orb1 ] * loc2dmet[ orb, orb2 ] * loc2dmet[ orb, orb3 ] * loc2dmet[ orb, orb4 ]
-                        TEIdmet[ orb1, orb2, orb3, orb4 ] = self.HubbardU * value
+                            value += loc2dmet[ orb, orb1 ] * loc2dmet[ orb, orb2 ] * loc2dmet[ orb, orb3 ] * loc2dmet[ orb, orb4 ] * self.HubbardU[ orb ]
+                        TEIdmet[ orb1, orb2, orb3, orb4 ] = value
         return TEIdmet
         

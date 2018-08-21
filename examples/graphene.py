@@ -58,7 +58,6 @@ cmtype = 'RHF'
 
 mf = scf.RHF(mol)
 mf.scf()
-
 myInts = localintegrals.localintegrals(mf, range(mol.nao_nr()), 'meta_lowdin')
 iatm = 1    # number of atoms in each impurity
 iorb = myInts.Norbs*iatm/natm

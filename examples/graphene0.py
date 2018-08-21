@@ -25,17 +25,13 @@ from pyscf import gto, scf
 
 # build a molecule of carbon atoms
 mol = gto.Mole()
-mol.build(
-   atom = '''
-   C 0.000000000000000E+000  0.000000000000000E+000  0.000000000000000E+000
-   C 0.000000000000000E+000   1.46060096158367       0.000000000000000E+000
-   C 1.26491753752344        2.19090144237551       0.000000000000000E+000
-   C 1.26491753752344        3.65150240395918       0.000000000000000E+000
-   ''',
-    symmetry = True,
-    verbose = 4
-    )
-
+mol.atom = [['C', (0.0,                          0.0,  0.0)],
+            ['C', (0.0,              1.46060096158367, 0.0)],
+            ['C', (1.26491753752344, 2.19090144237551, 0.0)],
+            ['C', (1.26491753752344, 3.65150240395918, 0.0)]]
+mol.symmetry = True
+mol.verbose = 4
+mol.atom.extend([['H',
 # parameters for dmet
 natm = mol.natm
 nelec = mol.tot_electrons()
