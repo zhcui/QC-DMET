@@ -53,8 +53,8 @@ class dmet:
         self.doDET_NO   = False
         self.NOrotation = None
         self.altcostfunc = use_constrained_opt
-
         self.minFunc    = None
+                
         if self.altcostfunc:
             self.minFunc = 'FOCK_INIT'  # 'OEI'
             assert (self.fitImpBath == False)
@@ -179,7 +179,7 @@ class dmet:
         return themask
         
     def doexact( self, chempot_imp=0.0 ):
-    
+        
         OneRDM = self.helper.construct1RDM_loc( self.doSCF, self.umat )
         self.energy   = 0.0
         self.imp_1RDM = []
@@ -339,7 +339,7 @@ class dmet:
 
             remainingOrbs[ remainingOrbs==1 ] -= 1
         assert( np.all( remainingOrbs == 0 ) )
-            
+        
         self.energy += self.ints.const()
         return Nelectrons
         
@@ -369,10 +369,10 @@ class dmet:
 
         newumatsquare_loc = self.flat2square( newumatflat )
         OneRDM_loc = self.helper.construct1RDM_loc( self.doSCF, newumatsquare_loc )
-
+        
         errors    = self.rdm_differences_bis( newumatflat )
         errors_sq = self.flat2square (errors)
-
+        
         if self.minFunc == 'OEI' :
             e_fun = np.trace( np.dot(self.ints.loc_oei(), OneRDM_loc) )
         elif self.minFunc == 'FOCK_INIT' :
@@ -396,11 +396,14 @@ class dmet:
         return -errors
     
     def rdm_differences( self, newumatflat ):
-    
+        
         start_func = time.time()
-    
+        
         newumatsquare_loc = self.flat2square( newumatflat )
-        OneRDM_loc = self.helper.construct1RDM_loc( self.doSCF, newumatsquare_loc )
+        if(self.helper.doT):
+            OneRDM_loc = self.helper.construct1RDM_loc_T( self.doSCF, newumatsquare_loc )
+        else:
+            OneRDM_loc = self.helper.construct1RDM_loc( self.doSCF, newumatsquare_loc)
         
         thesize = 0
         for count in range(len(self.imp_size)):
@@ -413,7 +416,7 @@ class dmet:
                 else:
                     thesize += self.imp_size[ count ] * self.imp_size[ count ]
         errors = np.zeros( [ thesize ], dtype=float )
-        
+
         jump = 0
         for count in range( len( self.imp_size ) ): # self.imp_size has length 1 if self.TransInv
             if ( self.fitImpBath == True ):
@@ -483,7 +486,6 @@ class dmet:
         
         newumatsquare_loc = self.flat2square( newumatflat )
         RDMderivs_rot = self.helper.construct1RDM_response( self.doSCF, newumatsquare_loc, self.NOrotation )
-        
         thesize = 0
         for count in range(len(self.imp_size)):
             if ( self.doDET == True ): # Do density embedding theory: fit only impurity
@@ -528,7 +530,7 @@ class dmet:
         return gradient
         
     def verify_gradient( self, umatflat ):
-    
+        
         gradient = self.costfunction_derivative( umatflat )
         cost_reference = self.costfunction( umatflat )
         gradientbis = np.zeros( [ len( gradient ) ], dtype=float )
@@ -629,6 +631,7 @@ class dmet:
             print "   Energy =", self.energy
             
             # self.verify_gradient( self.square2flat( self.umat ) ) # Only works for self.doSCF == False!!
+            # exit()
             # if ( self.SCmethod != 'NONE' and not(self.altcostfunc) ):
             #    self.hessian_eigenvalues( self.square2flat( self.umat ) )
             
@@ -638,11 +641,17 @@ class dmet:
                 result = optimize.minimize( self.alt_costfunction, self.square2flat( self.umat ), jac=self.alt_costfunction_derivative, tol=1E-8, options={'disp': False, 'eps':1E-10, 'gtol':1E-7, 'maxiter':500} )
                 self.umat = self.flat2square( result.x )
             elif ( self.SCmethod == 'LSTSQ' ):
-                result = optimize.leastsq( self.rdm_differences, self.square2flat( self.umat ), Dfun=self.rdm_differences_derivative, factor=0.1 )
-                self.umat = self.flat2square( result[ 0 ] )
+                result = optimize.leastsq( self.rdm_differences, self.square2flat( self.umat ), Dfun=self.rdm_differences_derivative, factor=0.1, xtol=1e-10, ftol=1e-10, full_output=True)
+                
+                self.umat = self.flat2square( result[0])
+                
+                # if result.ier in (1, 2, 3, 4):
+                #     print("optimize succeed")
+                # else:
+                #     exit()
+                
             elif ( self.SCmethod == 'BFGS' ):
-                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='L-BFGS-B', tol=1E-8, options={'disp': True, 'eps':1E-10, 'gtol':1E-7, 'maxiter':500})
-                #x, y, conv = fit.minimize(self.costfunction, self.square2flat( self.umat), fgrad = self.costfunction_derivative)
+                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='L-BFGS-B', tol=1E-10, options={'disp': True, 'eps':1E-8, 'gtol':1E-8, 'maxiter':500})
                 if(iteration > 1):
                     result.x = adiis.update(result.x)
                 
@@ -650,7 +659,8 @@ class dmet:
                 
                 # print('convergence parttan')
                 print('jac')
-                print(result.jac)                
+                print(result.jac)
+                
             self.umat = self.umat - np.eye( self.umat.shape[ 0 ] ) * np.average( np.diag( self.umat ) ) # Remove arbitrary chemical potential shifts
             if ( self.altcostfunc ):
                 print "   Cost function after convergence =", self.alt_costfunction( self.square2flat( self.umat ) )

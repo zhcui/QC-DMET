@@ -30,11 +30,11 @@ energies = []
 file = open("energy.dat", "w+")
 
 for Norbs in range( 20, 161, 20 ):
-
+   
    Nelectrons = Norbs
    HubbardU = np.zeros(Norbs)
    for orb in range(0,Norbs):
-      HubbardU[ orb ] = 1.0 + np.random.uniform(0,0.1)
+      HubbardU[ orb ] = 1.0# + np.random.uniform(0,0.1)
          
    hopping  = np.zeros( [Norbs, Norbs], dtype=float )
    for orb in range(Norbs-1):

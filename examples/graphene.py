@@ -70,7 +70,7 @@ for cluster in range(natm/iatm):
    impurityClusters.append(impurities)
    
 method = 'CC'
-SCmethod = 'BFGS'
+SCmethod = 'LSTSQ'
 isTranslationInvariant = False
 myInts.TI_OK = False
 
