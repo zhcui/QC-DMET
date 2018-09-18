@@ -40,6 +40,7 @@ def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, energytype='LAMBD
 
     # Augment the FOCK operator with the chemical potential
     FOCKcopy = FOCK.copy()
+    
     if (chempot_imp != 0.0):
         for orb in range(Nimp):
             FOCKcopy[ orb, orb ] -= chempot_imp
@@ -56,10 +57,11 @@ def solve( CONST, OEI, FOCK, TEI, Norb, Nel, Nimp, DMguessRHF, energytype='LAMBD
     mf._eri = ao2mo.restore(8, TEI, Norb)
     mf.scf( DMguessRHF )
     DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
+    
     if ( mf.converged == False ):
         mf = mf.newton()
         DMloc = np.dot(np.dot( mf.mo_coeff, np.diag( mf.mo_occ )), mf.mo_coeff.T )
-    
+        
     # Check the RHF solution
     assert( Nel % 2 == 0 )
     numPairs = Nel / 2

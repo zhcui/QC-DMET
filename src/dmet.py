@@ -32,14 +32,14 @@ class dmet:
         if ( isTranslationInvariant == True ):
             assert( theInts.TI_OK == True )
         
-        assert (( method == 'ED' ) or ( method == 'CC' ) or ( method == 'MP2' ))
+        assert (( method == 'ED' ) or ( method == 'CC' ) or ( method == 'MP2' ) or (method == 'FCI' ))
         assert (( SCmethod == 'LSTSQ' ) or ( SCmethod == 'BFGS' ) or ( SCmethod == 'NONE' ))
         
         self.ints       = theInts
         self.Norb       = self.ints.Norbs
         self.impClust   = impurityClusters
         self.umat       = np.zeros([ self.Norb, self.Norb ], dtype=float)
-        self.relaxation = 0.0
+        self.relaxation = 0
         
         self.NI_hack    = False
         self.method     = method
@@ -54,7 +54,7 @@ class dmet:
         self.NOrotation = None
         self.altcostfunc = use_constrained_opt
         self.minFunc    = None
-                
+        
         if self.altcostfunc:
             self.minFunc = 'FOCK_INIT'  # 'OEI'
             assert (self.fitImpBath == False)
@@ -91,6 +91,7 @@ class dmet:
         self.time_cf  = 0.0
         self.time_func= 0.0
         self.time_grad= 0.0
+        self.penalty  = 0.0
         
         np.set_printoptions(precision=3, linewidth=160)
         
@@ -195,7 +196,7 @@ class dmet:
         remainingOrbs = np.ones( [ len( self.impClust[ 0 ] ) ], dtype=float )
         
         for counter in range( maxiter ):
-        
+            
             flag_rhf = np.sum(self.impClust[ counter ]) < 0
             impurityOrbs = np.abs(self.impClust[ counter ])
             numImpOrbs   = np.sum( impurityOrbs )
@@ -204,6 +205,7 @@ class dmet:
             else:
                 numBathOrbs = self.BATH_ORBS[ counter ]
             numBathOrbs, loc2dmet, core1RDM_dmet = self.helper.constructbath( OneRDM, impurityOrbs, numBathOrbs )
+            
             if ( self.BATH_ORBS == None ):
                 core_cutoff = 0.01
             else:
@@ -216,7 +218,7 @@ class dmet:
                 else:
                     print "Bad DMET bath orbital selection: trying to put a bath orbital with occupation", core1RDM_dmet[ cnt ], "into the environment :-(."
                     assert( 0 == 1 )
-
+                    
             Norb_in_imp  = numImpOrbs + numBathOrbs
             Nelec_in_imp = int(round(self.ints.Nelec - np.sum( core1RDM_dmet )))
             core1RDM_loc = np.dot( np.dot( loc2dmet, np.diag( core1RDM_dmet ) ), loc2dmet.T )
@@ -252,6 +254,11 @@ class dmet:
                 assert( Nelec_in_imp % 2 == 0 )
                 DMguessRHF = self.ints.dmet_init_guess_rhf( loc2dmet, Norb_in_imp, Nelec_in_imp/2, numImpOrbs, chempot_imp )
                 IMP_energy, IMP_1RDM = pyscf_cc.solve( 0.0, dmetOEI, dmetFOCK, dmetTEI, Norb_in_imp, Nelec_in_imp, numImpOrbs, DMguessRHF, self.CC_E_TYPE, chempot_imp )
+            elif ( self.method == 'FCI' ):
+                import pyscf_fci
+                assert( Nelec_in_imp % 2 == 0)
+                DMguessRHF = self.ints.dmet_init_guess_rhf( loc2dmet, Norb_in_imp, Nelec_in_imp/2, numImpOrbs, chempot_imp )
+                IMP_energy, IMP_1RDM = pyscf_fci.solve( 0.0, dmetOEI, dmetFOCK, dmetTEI, Norb_in_imp, Nelec_in_imp, numImpOrbs, DMguessRHF, chempot_imp)
             elif ( self.method == 'MP2' ):
                 import pyscf_mp2
                 assert( Nelec_in_imp % 2 == 0 )
@@ -270,6 +277,7 @@ class dmet:
             self.NOrotation = self.constructNOrotation()
         
         Nelectrons = 0.0
+        
         for counter in range( maxiter ):
             Nelectrons += np.trace( self.imp_1RDM[counter][ :self.imp_size[counter], :self.imp_size[counter] ] )
         if ( self.TransInv == True ):
@@ -362,9 +370,9 @@ class dmet:
         return myNOrotation
         
     def costfunction( self, newumatflat ):
-
+        
         return np.linalg.norm( self.rdm_differences( newumatflat ) )**2
-
+    
     def alt_costfunction( self, newumatflat ):
 
         newumatsquare_loc = self.flat2square( newumatflat )
@@ -388,6 +396,7 @@ class dmet:
         thegradient = np.zeros([ len( newumatflat ) ], dtype=float)
         for counter in range( len( newumatflat ) ):
             thegradient[ counter ] = 2 * np.sum( np.multiply( error_derivs[ : , counter ], errors ) )
+            
         return thegradient
 
     def alt_costfunction_derivative( self, newumatflat ):
@@ -523,7 +532,7 @@ class dmet:
             assert ( jump == thesize )
             gradient.append( error_deriv )
         gradient = np.array( gradient ).T
-        
+                    
         stop_grad = time.time()
         self.time_grad += ( stop_grad - start_grad )
         
@@ -534,7 +543,7 @@ class dmet:
         gradient = self.costfunction_derivative( umatflat )
         cost_reference = self.costfunction( umatflat )
         gradientbis = np.zeros( [ len( gradient ) ], dtype=float )
-        stepsize = 1e-7
+        stepsize = 1e-6
         for cnt in range( len( gradient ) ):
             umatbis = np.array( umatflat, copy=True )
             umatbis[cnt] += stepsize
@@ -603,18 +612,20 @@ class dmet:
         iteration = 0
         u_diff = 1.0
         e_diff = 1.0
-        u_threshold = 1e-5
-        e_threshold = 1e-5
+        u_threshold = 1e-4
+        e_threshold = 1e-4
         
         adiis = lib.diis.DIIS()
         
         print "RHF energy =", self.ints.fullEhf
+        log = open("gap_eig.log", "w")
         
         while ((u_diff > u_threshold) or (e_diff > e_threshold)):
             
             iteration += 1
             print "DMET iteration", iteration
             umat_old = np.array( self.umat, copy=True )
+            
             rdm_old = self.transform_ed_1rdm() # At the very first iteration, this matrix will be zero
             e_old = self.energy
             
@@ -630,10 +641,13 @@ class dmet:
             self.time_ed += ( stop_ed - start_ed )
             print "   Energy =", self.energy
             
+            # self.mu_imp = 0.0
+            # self.numeleccostfunction(0.0)
+            
             # self.verify_gradient( self.square2flat( self.umat ) ) # Only works for self.doSCF == False!!
             # exit()
             # if ( self.SCmethod != 'NONE' and not(self.altcostfunc) ):
-            #    self.hessian_eigenvalues( self.square2flat( self.umat ) )
+            # self.hessian_eigenvalues( self.square2flat( self.umat ) )
             
             # Solve for the u-matrix
             start_cf = time.time()
@@ -642,54 +656,60 @@ class dmet:
                 self.umat = self.flat2square( result.x )
             elif ( self.SCmethod == 'LSTSQ' ):
                 result = optimize.leastsq( self.rdm_differences, self.square2flat( self.umat ), Dfun=self.rdm_differences_derivative, factor=0.1, xtol=1e-10, ftol=1e-10, full_output=True)
-                
+                    
                 self.umat = self.flat2square( result[0])
                 
-                # if result.ier in (1, 2, 3, 4):
-                #     print("optimize succeed")
-                # else:
-                #     exit()
-                
             elif ( self.SCmethod == 'BFGS' ):
-                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='L-BFGS-B', tol=1E-10, options={'disp': True, 'eps':1E-8, 'gtol':1E-8, 'maxiter':500})
-                if(iteration > 1):
-                    result.x = adiis.update(result.x)
-                
-                self.umat = self.flat2square(result.x )
-                
-                # print('convergence parttan')
-                print('jac')
-                print(result.jac)
-                
-            self.umat = self.umat - np.eye( self.umat.shape[ 0 ] ) * np.average( np.diag( self.umat ) ) # Remove arbitrary chemical potential shifts
+                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='BFGS', tol=1E-5, options={'eps': 1e-6, 'disp': True})
+                self.umat = self.flat2square( result.x )
+            elif ( self.SCmethod == 'CG' ) :
+                result = optimize.minimize( self.costfunction, self.square2flat( self.umat ), jac=self.costfunction_derivative, method='CG', tol=1E-5, options={'xtol': 1e-05, 'eps': 1e-6, 'disp': True})
             if ( self.altcostfunc ):
                 print "   Cost function after convergence =", self.alt_costfunction( self.square2flat( self.umat ) )
             else:
                 print "   Cost function after convergence =", self.costfunction( self.square2flat( self.umat ) )
+                print "   grad |CF| after convergence     =", np.linalg.norm(self.costfunction_derivative( self.square2flat( self.umat )))
+                
+            self.umat = self.umat - np.eye( self.umat.shape[ 0 ] ) * np.average( np.diag( self.umat ) ) # Remove arbitrary chemical potential shifts    
             stop_cf = time.time()
             self.time_cf += ( stop_cf - start_cf )
-            
+            # if iteration > 1:
+            self.umat = adiis.update(self.umat)
             # Possibly print the u-matrix / 1-RDM
             if self.print_u:
                 self.print_umat()
             if self.print_rdm:
                 self.print_1rdm()
                 
+            # self.umat = self.relaxation * umat_old + ( 1.0 - self.relaxation ) * self.umat
+             
             # Get the error measure
             u_diff   = np.linalg.norm( umat_old - self.umat )
             e_diff   = np.abs(e_old - self.energy)
             rdm_diff = np.linalg.norm( rdm_old - self.transform_ed_1rdm() )
-            
-            self.umat = self.relaxation * umat_old + ( 1.0 - self.relaxation ) * self.umat
+                        
             print "             difference old and new energy=", e_diff
             print "   2-norm of difference old and new u-mat =", u_diff
             #print "   2-norm of difference old and new 1-RDM =", rdm_diff
             print "******************************************************"
             
+            OEI = self.helper.locints.loc_rhf_fock() + self.umat
+            eigenvals, eigenvecs = np.linalg.eigh( OEI )
+            idx = eigenvals.argsort()
+            eigenvals = eigenvals[idx]
+            nocc = self.helper.numPairs
+            gap = eigenvals[nocc] - eigenvals[nocc-1]
+            log.write("Gap: %f " % gap)
+            log.write("Occupied: ")
+            for i in range(0, nocc):
+                log.write("%f " % eigenvals[i])
+            log.write("\n")
+            
             if ( self.SCmethod == 'NONE' ):
                 u_diff = 0.1 * u_threshold # Do only 1 iteration
                 e_diff = 0.1 * u_threshold
-                
+
+        log.close()
         print "Time cf func =", self.time_func
         print "Time cf grad =", self.time_grad
         print "Time dmet ed =", self.time_ed

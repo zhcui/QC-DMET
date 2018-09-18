@@ -24,8 +24,7 @@ import numpy as np
 from pyscf import gto, scf
 
 # build a molecule of carbon atoms
-mol = gto.Mole()
-mol.build(
+mol = gto.M(
     atom = '''
     C 0.000000000000000E+000  0.000000000000000E+000  0.000000000000000E+000
     C 0.000000000000000E+000   1.46060096158367       0.000000000000000E+000
@@ -70,7 +69,7 @@ for cluster in range(natm/iatm):
    impurityClusters.append(impurities)
    
 method = 'CC'
-SCmethod = 'LSTSQ'
+SCmethod = 'BFGS'
 isTranslationInvariant = False
 myInts.TI_OK = False
 

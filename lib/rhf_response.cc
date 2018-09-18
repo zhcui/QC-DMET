@@ -20,6 +20,8 @@
 #include <cstdlib>
 #include <mathimf.h>
 #include <iostream>
+#include <fstream>
+
 extern "C" {
   
   void dgemm_(char * transA, char * transB, const int * m, const int * n,
@@ -71,6 +73,9 @@ extern "C"{
     for ( int orb_vir = 0; orb_vir < nVir; orb_vir++ ){
       for ( int orb_occ = 0; orb_occ < numPairs; orb_occ++ ){
 	temp[ orb_vir + nVir * orb_occ ] = - 1.0 / ( eigvals[ numPairs + orb_vir ] - eigvals[ orb_occ ] );
+	//if(abs( eigvals[ numPairs + orb_vir ] - eigvals[ orb_occ ] ) < 1E-6){
+	//  printf("warning: gap is small\n");
+	//}
       }
     }
     
@@ -170,7 +175,7 @@ extern "C" {
       
       free(temp0);
     }
-    
+        
     {
       // temp = (1 - np)*nq*(exp(Ep - Eq)-1)/(Ep - Eq)
       for ( int row = 0; row < Norb; row++ ){
@@ -178,9 +183,8 @@ extern "C" {
 	  double nrow = 1.0/(1.0 + exp(Tempr*(eigvals[row]-mu)));
 	  double ncol = 1.0/(1.0 + exp(Tempr*(eigvals[col]-mu)));
 	  
-	  if ( abs ( eigvals[row] - eigvals[col] ) < 1E-3 ){
+	  if ( abs ( eigvals[row] - eigvals[col] ) < 1E-10){
 	    temp [ row + col*Norb ] = -1.0*(1.0-ncol)*nrow*Tempr;
-	    printf("too close\n");
 	  }
 	  else {
 	    temp [ row + col*Norb ] = -1.0*(ncol-nrow)/(eigvals[row]-eigvals[col]);
@@ -196,7 +200,6 @@ extern "C" {
       double * work2 = (double *) malloc(sizeof(double)*size);
 # pragma omp for schedule(static)
       for ( int deriv = 0; deriv < Nterms; deriv++){
-	
 	for ( int row = 0; row < Norb; row++){
 	  for ( int col = 0; col < Norb; col++){
 	    double value = 0.0;

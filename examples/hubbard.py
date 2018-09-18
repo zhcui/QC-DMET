@@ -56,7 +56,7 @@ for Nelectrons in range( 40, 161, 40 ):
    for item in impurityClusters:
        totalcount += item
    assert ( np.linalg.norm( totalcount - np.ones( [ myInts.Norbs ], dtype=float ) ) < 1e-12 )
-
+   
    isTranslationInvariant = False
    method = 'CC'
    SCmethod = 'LSTSQ' # 'LSTSQ'

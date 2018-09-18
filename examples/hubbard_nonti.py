@@ -22,55 +22,52 @@ sys.path.append('../src')
 import localintegrals_hubbard, dmet, qcdmet_paths
 import numpy as np
 
-imp_size   = 2
+imp_size   = 4
 
 fillings = []
 energies = []
 
 file = open("energy.dat", "w+")
 
-for Norbs in range( 20, 161, 20 ):
-   
-   Nelectrons = Norbs
-   HubbardU = np.zeros(Norbs)
-   for orb in range(0,Norbs):
-      HubbardU[ orb ] = 1.0# + np.random.uniform(0,0.1)
-         
-   hopping  = np.zeros( [Norbs, Norbs], dtype=float )
-   for orb in range(Norbs-1):
-       hopping[ orb, orb+1 ] = -1.0
-       hopping[ orb+1, orb ] = -1.0
-   hopping[ 0, Norbs-1 ] = 1.0 # anti-PBC
-   hopping[ Norbs-1, 0 ] = 1.0 # anti-PBC
-   
-   myInts = localintegrals_hubbard.localintegrals_hubbard( hopping, HubbardU, Nelectrons )
-   
-   impurityClusters = []
-   for cluster in range( Norbs / imp_size ):
-       impurities = np.zeros( [ myInts.Norbs ], dtype=int )
-       for orb in range( cluster*imp_size, (cluster+1)*imp_size ):
-           impurities[ orb ] = 1
-       impurityClusters.append( impurities )
+Norbs = 120
+Nelectrons = Norbs - 4
+HubbardU = np.zeros(Norbs)
 
-   totalcount = np.zeros( [ myInts.Norbs ], dtype=int )
-   for item in impurityClusters:
-       totalcount += item
-   assert ( np.linalg.norm( totalcount - np.ones( [ myInts.Norbs ], dtype=float ) ) < 1e-12 )
+np.random.seed(123)
+for orb in range(0,Norbs):
+   HubbardU[ orb ] = 2.0 + np.random.uniform(0,1)
 
-   isTranslationInvariant = False
-   method = 'CC'
-   SCmethod = 'LSTSQ' # 'LSTSQ'
-   theDMET = dmet.dmet( myInts, impurityClusters, isTranslationInvariant, method, SCmethod )
-   #oldUMAT = 0.33 * ( 2 * np.random.rand( Norbs, Norbs ) - 1 )
-   #if ( oldUMAT != None ):
-   #    theDMET.umat = theDMET.flat2square( theDMET.square2flat( oldUMAT ) )
-   theEnergy = theDMET.doselfconsistent()
-   
-   fillings.append( (1.0 * Nelectrons) / Norbs )
-   energies.append( theEnergy / Norbs )
-   
-   file.write(str(theEnergy/Nelectrons) + '\n')
+hopping  = np.zeros( [Norbs, Norbs], dtype=float )
+for orb in range(Norbs-1):
+   hopping[ orb, orb+1 ] = -1.0
+   hopping[ orb+1, orb ] = -1.0
+hopping[ 0, Norbs-1 ] = 1.0 # anti-PBC
+hopping[ Norbs-1, 0 ] = 1.0 # anti-PBC
 
+myInts = localintegrals_hubbard.localintegrals_hubbard( hopping, HubbardU, Nelectrons )
+   
+impurityClusters = []
+for cluster in range( Norbs / imp_size ):
+   impurities = np.zeros( [ myInts.Norbs ], dtype=int )
+   for orb in range( cluster*imp_size, (cluster+1)*imp_size ):
+      impurities[ orb ] = 1
+   impurityClusters.append( impurities )
+
+totalcount = np.zeros( [ myInts.Norbs ], dtype=int )
+for item in impurityClusters:
+   totalcount += item
+assert ( np.linalg.norm( totalcount - np.ones( [ myInts.Norbs ], dtype=float ) ) < 1e-12 )
+
+isTranslationInvariant = False
+method = 'CC'
+SCmethod = 'BFGS' # 'LSTSQ'
+theDMET = dmet.dmet( myInts, impurityClusters, isTranslationInvariant, method, SCmethod )
+theEnergy = theDMET.doselfconsistent()
+
+fillings.append( (1.0 * Nelectrons) / Norbs )
+energies.append( theEnergy / Norbs )
+
+file.write(str(theEnergy/Nelectrons) + '\n')
 file.close()
 
 np.set_printoptions(precision=8, linewidth=160)

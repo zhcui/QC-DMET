@@ -47,8 +47,8 @@ class qcdmethelper:
         
         # variables for finite temperature density matrix
         self.mu = 0.0
-        self.Tempr = 60
-        self.doT = True
+        self.Tempr = 1000
+        self.doT = False
         
     def convertH1sparse( self ):
         
@@ -64,6 +64,7 @@ class qcdmethelper:
             for count2 in range( len( rowco ) ):
                 H1row.append( rowco[ count2 ] )
                 H1col.append( colco[ count2 ] )
+        
         H1start = np.array( H1start, dtype=ctypes.c_int )
         H1row   = np.array( H1row,   dtype=ctypes.c_int )
         H1col   = np.array( H1col,   dtype=ctypes.c_int )
@@ -156,7 +157,7 @@ class qcdmethelper:
         OneDM = 2 * np.dot( eigenvecs[:,:myNumPairs] , eigenvecs[:,:myNumPairs].T )
         #print "SP gap =", eigenvals[myNumPairs] - eigenvals[myNumPairs-1]
         return OneDM
-
+    
     
     def construct1RDM_base_T( self, OEI, myNumPairs):
         
@@ -176,37 +177,29 @@ class qcdmethelper:
         
         N1 = 0.0; N2 = 0.0
         for i in range(0,len(eigenvals)):
-            trm1 = np.exp(invT*(eigenvals[i]-mu1))
-            trm2 = np.exp(invT*(eigenvals[i]-mu2))
-            N1 += 1.0/(1.0+trm1)
-            N2 += 1.0/(1.0+trm2)
-            
+            if(invT*(eigenvals[i]-mu1) < 100):
+                trm1 = np.exp(invT*(eigenvals[i]-mu1))
+                N1 += 1.0/(1.0+trm1)
+
+            if(invT*(eigenvals[i]-mu2) < 100):
+                trm2 = np.exp(invT*(eigenvals[i]-mu2))
+                N2 += 1.0/(1.0+trm2)
+                
         while(mu_diff > mu_eps and iteration < 100):
             iteration += 1
-            # mu_old = mu
-            
-            # N = 0
-            # gradN = 0
-            # for i in range(0, len(eigenvals)):
-            #     trm0 = np.exp(invT*(eigenvals[i]-mu))
-            #     N += 1/(1+trm0)
-            #     gradN += (1+trm0)**(-2)*trm0*invT
-            
-            # mu = mu - (N-myNumPairs)/gradN
-            # mu_diff = np.abs(mu_old-mu)
-            
+                        
             N0 = 0.0
             mu0 = (mu1+mu2)/2.0
             for i in range(0, len(eigenvals)):
-                trm0 = np.exp(invT*(eigenvals[i]-mu0))
-                N0 += 1.0/(1.0+trm0)
+                if(invT*(eigenvals[i]-mu0) < 300):
+                    trm0 = np.exp(invT*(eigenvals[i]-mu0))
+                    N0 += 1.0/(1.0+trm0)
             if(np.abs(N1-myNumPairs) > np.abs(N2-myNumPairs)):
                 N1 = N0; mu1 = mu0
             else:
                 N2 = N0; mu2 = mu0
             mu_diff = np.abs(mu1-mu2)
-            
-            
+                        
         # print("Chemical potential", mu, eigenvals)
         if(iteration > 100):
             print("Did not find the proper chemical potential")
@@ -214,13 +207,12 @@ class qcdmethelper:
             
         vecs = np.zeros((len(eigenvals), len(eigenvals)))
         for i in range(0, len(eigenvals)):
-            vecs[i,:] = eigenvecs[:,i]/(1+np.exp(invT*(eigenvals[i]-mu)))
-            
-        
+            if(invT*(eigenvals[i]-mu0) < 300):
+                vecs[i,:] = eigenvecs[:,i]/(1+np.exp(invT*(eigenvals[i]-mu0)))
         OneDM = 2 * np.dot( eigenvecs[:,:] , vecs[:,:] )
         #print "SP gap =", eigenvals[myNumPairs] - eigenvals[myNumPairs-1]
         
-        self.mu = mu
+        self.mu = mu0
         
         return OneDM
     
@@ -262,7 +254,7 @@ class qcdmethelper:
                 eigenvecs[counter2, counter] = 1.0
                 counter += 1
         assert( counter == numImpOrbs )
-    
+        
         # Orthonormality is guaranteed due to (1) stacking with zeros and (2) orthonormality eigenvecs for symmetric matrix
         assert( np.linalg.norm( np.dot(eigenvecs.T, eigenvecs) - np.identity(numTotalOrbs) ) < 1e-12 )
 

@@ -53,9 +53,9 @@ for cluster in range(natm/iatm):
    for orb in range(iorb):
       impurities[cluster*iorb + orb] = 1
    impurityClusters.append(impurities)
-   
-method = 'CC'
-SCmethod = 'LSTSQ'
+
+method = 'FCI'
+SCmethod = 'BFGS'
 isTranslationInvariant = False
 myInts.TI_OK = True
 
